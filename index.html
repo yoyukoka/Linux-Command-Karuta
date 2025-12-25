@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Linux Command Karuta</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha512-6qL49PCLUNC9bcgWS6mAjNppgyz1dgA19sPEt6h1owzRlBs4F3k7v1dLpVAn+sCp5AoDC3pBAMe6k7+MTUR2BA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+<style>
+:root {
+  color-scheme: dark light;
+  font-family: "Fira Code", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  background: radial-gradient(circle at top, #1f2937 0%, #0f172a 60%, #020617 100%);
+  min-height: 100vh;
+}
+
+body {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  color: #f8fafc;
+  gap: 16px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 1.4rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.app-grid {
+  width: min(1100px, 100%);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.panel {
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.55);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  backdrop-filter: blur(10px);
+}
+
+.panel header {
+  margin: 0;
+  padding: 14px 18px;
+  font-size: 0.95rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  background: rgba(148, 163, 184, 0.12);
+  color: #cbd5f5;
+}
+
+.terminal {
+  background: #020617;
+  color: #22ff88;
+  min-height: 420px;
+  max-height: 500px;
+  overflow-y: auto;
+  padding: 18px;
+  line-height: 1.5;
+}
+
+.terminal::-webkit-scrollbar,
+.file-tree::-webkit-scrollbar {
+  width: 10px;
+}
+
+.terminal::-webkit-scrollbar-thumb,
+.file-tree::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.2);
+  border-radius: 999px;
+}
+
+.log-line {
+  white-space: pre-wrap;
+  margin: 0 0 6px 0;
+}
+
+.log-line.command {
+  color: #38ffb7;
+}
+
+.log-line.prompt {
+  color: #cbd5f5;
+}
+
+.log-line.system {
+  color: #f97316;
+}
+
+.log-line.subtle {
+  color: rgba(148, 255, 176, 0.6);
+}
+
+.log-line.error {
+  color: #f87171;
+}
+
+.file-tree {
+  background: rgba(15, 23, 42, 0.62);
+  min-height: 420px;
+  max-height: 500px;
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.fs-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.72);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  padding: 12px 16px;
+  position: relative;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.fs-item .meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.9rem;
+  color: #e2e8f0;
+}
+
+.fs-item .meta .fa {
+  font-size: 1.15rem;
+}
+
+.fs-item .preview {
+  background: rgba(15, 23, 42, 0.88);
+  border: 1px dashed rgba(148, 163, 184, 0.25);
+  border-radius: 10px;
+  padding: 10px;
+  font-size: 0.75rem;
+  color: rgba(203, 213, 225, 0.85);
+  max-height: 120px;
+  overflow: hidden;
+  white-space: pre-wrap;
+}
+
+.fs-item.directory {
+  border: 1px solid rgba(59, 130, 246, 0.35);
+}
+
+.children {
+  margin-left: 24px;
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+#actionButton {
+  font-size: 1.4rem;
+  padding: 18px 36px;
+  border-radius: 999px;
+  border: none;
+  background: linear-gradient(135deg, #22d3ee, #6366f1);
+  color: white;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 600;
+  box-shadow: 0 20px 45px rgba(79, 70, 229, 0.45);
+  cursor: pointer;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+#actionButton:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 26px 55px rgba(14, 165, 233, 0.5);
+}
+
+#actionButton:active {
+  transform: translateY(0px) scale(0.99);
+}
+
+.pulse {
+  box-shadow: 0 0 0 0 rgba(34, 211, 238, 0.6);
+  animation: pulse 0.9s ease-out;
+}
+
+.flash {
+  animation: flash 0.8s ease-in-out;
+}
+
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(34, 211, 238, 0.8); }
+  100% { box-shadow: 0 0 0 20px rgba(34, 211, 238, 0); }
+}
+
+@keyframes flash {
+  0%, 100% { border-color: rgba(148, 163, 184, 0.2); }
+  50% { border-color: rgba(250, 204, 21, 0.6); }
+}
+
+.fade {
+  animation: fadeout 1.4s forwards;
+}
+
+@keyframes fadeout {
+  0% { opacity: 1; }
+  100% { opacity: 0; transform: scale(0.8); }
+}
+
+@media (max-width: 768px) {
+  body {
+    padding: 12px;
+  }
+  #actionButton {
+    width: 100%;
+  }
+}
+</style>
+</head>
+<body>
+<h1>Linux Command Karuta</h1>
+<div class="app-grid">
+  <section class="panel">
+    <header>Terminal</header>
+    <div class="terminal" id="terminal"></div>
+  </section>
+  <section class="panel">
+    <header>File System</header>
+    <div class="file-tree" id="filesystem"></div>
+  </section>
+</div>
+<button id="actionButton">次の札を読む</button>
+<script>
+(() => {
+  const STATE = {
+    WAITING: "waiting",
+    REVEAL: "reveal",
+    FINISHED: "finished"
+  };
+
+  const terminalEl = document.getElementById("terminal");
+  const filesystemEl = document.getElementById("filesystem");
+  const actionButton = document.getElementById("actionButton");
+
+  let currentState = STATE.WAITING;
+  let deck = [];
+  let currentCard = null;
+  const terminalLog = [];
+  const animationQueue = [];
+  let idCounter = 0;
+
+  const fsState = {
+    items: new Map(),
+    rootIds: []
+  };
+
+  const INITIAL_FILES = () => ({
+    appLog: {
+      name: "app.log",
+      content: [
+        "2025-12-25 07:58:01 [INFO] Boot sequence started",
+        "2025-12-25 07:58:03 [INFO] Loading core modules",
+        "2025-12-25 07:58:05 [INFO] Network interface eth0 up",
+        "2025-12-25 07:58:07 [INFO] DNS lookup resolved api.internal",
+        "2025-12-25 07:58:10 [INFO] Service scheduler initiated",
+        "2025-12-25 07:58:12 [INFO] Preparing Christmas deployment",
+        "2025-12-25 07:58:15 [INFO] Worker-1 heartbeat received",
+        "2025-12-25 07:58:18 [INFO] Worker-2 heartbeat received",
+        "2025-12-25 07:58:21 [WARN] Cache miss on layer terraform",
+        "2025-12-25 07:58:25 [INFO] Cache repopulation queued",
+        "2025-12-25 07:58:29 [INFO] API latency 82ms",
+        "2025-12-25 07:58:34 [INFO] Queue depth 3",
+        "2025-12-25 07:58:37 [ERROR] Worker-4 panic: segmentation fault",
+        "2025-12-25 07:58:39 [INFO] Restart policy triggered",
+        "2025-12-25 07:58:42 [INFO] Worker-4 restart scheduled",
+        "2025-12-25 07:58:46 [INFO] Worker-4 online",
+        "2025-12-25 07:58:52 [INFO] Warming up cache",
+        "2025-12-25 07:58:56 [ERROR] Payment service timeout",
+        "2025-12-25 07:59:01 [INFO] Retrying payment service",
+        "2025-12-25 07:59:05 [WARN] Payment latency elevated",
+        "2025-12-25 07:59:12 [INFO] Payment service recovered",
+        "2025-12-25 07:59:15 [INFO] Dispatching morning cron",
+        "2025-12-25 07:59:22 [INFO] Cron completed",
+        "2025-12-25 07:59:28 [ERROR] Failed to upload audit log",
+        "2025-12-25 07:59:33 [INFO] Retrying audit upload",
+        "2025-12-25 07:59:36 [INFO] Audit upload succeeded",
+        "2025-12-25 07:59:40 [INFO] All systems nominal",
+        "2025-12-25 07:59:46 [INFO] Preparing celebratory banner",
+        "2025-12-25 07:59:50 [INFO] Banner deployed",
+        "2025-12-25 08:00:00 [INFO] Holiday mode engaged"
+      ].join("\n"),
+      permissions: "-rw-r--r--"
+    },
+    todo: {
+      name: "todo.txt",
+      content: [
+        "[ ] Write pitch deck",
+        "[ ] Polish CLI demo",
+        "[ ] Configure CI pipeline",
+        "[ ] Ship hotfix for auth",
+        "[ ] Verify rollback plan",
+        "[ ] Update README badges",
+        "[ ] Mail gratitude postcards",
+        "[ ] Refill coffee beans",
+        "[ ] Review UX wireframes",
+        "[ ] Check voiceover scripts",
+        "[ ] Stage lighting rehearsal",
+        "[ ] Confirm sponsor slots",
+        "[ ] Tune autoscaling rules",
+        "[ ] Draft release notes",
+        "[ ] Update help center",
+        "[ ] Schedule retrospective",
+        "[ ] Publish demo replay",
+        "[ ] Archive sprint docs",
+        "[ ] Celebrate team wins",
+        "[ ] Prep surprise feature"
+      ].join("\n"),
+      permissions: "-rw-r--r--"
+    }
+  });
+
+  const commandDefinitions = [
+    {
+      name: "grep",
+      description: "パターンにマッチする行を出力します。",
+      execute: context => runGrep(context)
+    },
+    {
+      name: "echo",
+      description: "テキストを標準出力に表示します。",
+      execute: context => runEcho(context)
+    },
+    {
+      name: "touch",
+      description: "空のファイルを新しく用意します。",
+      execute: context => runTouch(context)
+    },
+    {
+      name: "mv",
+      description: "ファイルを別の場所へ移動します。",
+      execute: context => runMv(context)
+    },
+    {
+      name: "mkdir",
+      description: "新しいディレクトリを作成します。",
+      execute: context => runMkdir(context)
+    },
+    {
+      name: "less",
+      description: "ファイルをスクロールしながら閲覧します。",
+      execute: context => runLess(context)
+    },
+    {
+      name: "tail",
+      description: "ファイルの末尾を表示します。",
+      execute: context => runTail(context)
+    },
+    {
+      name: "cp",
+      description: "ファイルを複製します。",
+      execute: context => runCp(context)
+    },
+    {
+      name: "cat",
+      description: "ファイル全体を出力します。",
+      execute: context => runCat(context)
+    },
+    {
+      name: "chmod",
+      description: "パーミッションを変更します。",
+      execute: context => runChmod(context)
+    },
+    {
+      name: "rm",
+      description: "すべての成果物を消し去ります。",
+      execute: context => runRm(context)
+    }
+  ];
+
+  actionButton.addEventListener("click", () => {
+    if (currentState === STATE.WAITING) {
+      startRound();
+    } else if (currentState === STATE.REVEAL) {
+      revealCommand();
+    } else if (currentState === STATE.FINISHED) {
+      initializeGame();
+    }
+  });
+
+  function initializeGame() {
+    currentState = STATE.WAITING;
+    deck = buildDeck();
+    currentCard = null;
+    terminalLog.length = 0;
+    resetFileSystem();
+    logSystem("=== Ready for Linux Command Karuta ===");
+    logSystem("Press the button to draw your first description.");
+    updateButtonLabel();
+  }
+
+  function buildDeck() {
+    const others = commandDefinitions.filter(cmd => cmd.name !== "rm");
+    const rmCard = commandDefinitions.find(cmd => cmd.name === "rm");
+    shuffle(others);
+    return [...others, rmCard];
+  }
+
+  function startRound() {
+    if (!deck.length) {
+      finishGame();
+      return;
+    }
+    currentCard = deck.shift();
+    currentState = STATE.REVEAL;
+    logSeparator();
+    logPrompt("Command: ? ? ?");
+    speakDescription(currentCard.description);
+    updateButtonLabel();
+  }
+
+  function revealCommand() {
+    if (!currentCard) {
+      return;
+    }
+    logPrompt(`Command: ${currentCard.name}`);
+    currentCard.execute(createContext()).then(() => {
+      if (currentCard.name === "rm") {
+        finishGame();
+      } else if (!deck.length) {
+        finishGame();
+      } else {
+        currentState = STATE.WAITING;
+        currentCard = null;
+        updateButtonLabel();
+      }
+    });
+  }
+
+  function finishGame() {
+    currentState = STATE.FINISHED;
+    currentCard = null;
+    updateButtonLabel();
+    logSystem("Session complete. Reboot to shuffle the deck.");
+  }
+
+  function updateButtonLabel() {
+    if (currentState === STATE.WAITING) {
+      actionButton.textContent = "次の札を読む";
+    } else if (currentState === STATE.REVEAL) {
+      actionButton.textContent = "実行（正解を表示）";
+    } else {
+      actionButton.textContent = "Reboot";
+    }
+  }
+
+  function createContext() {
+    return {
+      logCommand,
+      logOutput,
+      logSystem,
+      ensureFileExists,
+      ensureDirectoryExists,
+      formatLsLine,
+      pickFile,
+      pickDirectory,
+      createFile,
+      createDirectory,
+      moveItem,
+      cloneFile,
+      updateFileContent,
+      scheduleAnimation,
+      renderFileSystem,
+      fsState
+    };
+  }
+
+  function logCommand(text) {
+    pushLog({ text: `$ ${text}`, className: "command" });
+  }
+
+  function logOutput(text) {
+    pushLog({ text, className: "" });
+  }
+
+  function logSystem(text) {
+    pushLog({ text, className: "system" });
+  }
+
+  function logPrompt(text) {
+    pushLog({ text, className: "prompt" });
+  }
+
+  function logSeparator() {
+    pushLog({ text: "----------------------------------------", className: "subtle" });
+  }
+
+  function pushLog(entry) {
+    terminalLog.push(entry);
+    renderTerminal();
+  }
+
+  function renderTerminal() {
+    terminalEl.innerHTML = terminalLog
+      .map(line => `<div class="log-line ${line.className || ""}">${escapeHtml(line.text)}</div>`)
+      .join("");
+    terminalEl.scrollTop = terminalEl.scrollHeight;
+  }
+
+  function escapeHtml(str) {
+    return str
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+  }
+
+  function resetFileSystem() {
+    fsState.items.clear();
+    fsState.rootIds = [];
+    const { appLog, todo } = INITIAL_FILES();
+    createFile(appLog.name, appLog.content, null, appLog.permissions);
+    createFile(todo.name, todo.content, null, todo.permissions);
+    renderFileSystem();
+  }
+
+  function renderFileSystem() {
+    filesystemEl.innerHTML = "";
+    const fragment = document.createDocumentFragment();
+    fsState.rootIds.forEach(id => {
+      const node = renderItem(fsState.items.get(id));
+      if (node) {
+        fragment.appendChild(node);
+      }
+    });
+    filesystemEl.appendChild(fragment);
+    requestAnimationFrame(applyAnimations);
+  }
+
+  function renderItem(item) {
+    if (!item) {
+      return null;
+    }
+    const wrapper = document.createElement("div");
+    wrapper.classList.add("fs-item");
+    wrapper.dataset.id = item.id;
+    const meta = document.createElement("div");
+    meta.classList.add("meta");
+
+    const icon = document.createElement("i");
+    if (item.type === "directory") {
+      wrapper.classList.add("directory");
+      icon.classList.add("fa", "fa-folder");
+    } else {
+      icon.classList.add("fa", "fa-file-lines");
+    }
+
+    const name = document.createElement("span");
+    name.textContent = `${item.name}`;
+
+    const perm = document.createElement("span");
+    perm.textContent = item.permissions;
+    perm.style.fontSize = "0.75rem";
+    perm.style.opacity = "0.7";
+
+    meta.appendChild(icon);
+    meta.appendChild(name);
+    meta.appendChild(perm);
+    wrapper.appendChild(meta);
+
+    if (item.type === "file") {
+      const preview = document.createElement("div");
+      preview.classList.add("preview");
+      preview.textContent = item.content ? truncateContent(item.content) : "(empty)";
+      wrapper.appendChild(preview);
+    } else {
+      if (item.children.length) {
+        const childContainer = document.createElement("div");
+        childContainer.classList.add("children");
+        item.children.forEach(childId => {
+          const childNode = renderItem(fsState.items.get(childId));
+          if (childNode) {
+            childContainer.appendChild(childNode);
+          }
+        });
+        wrapper.appendChild(childContainer);
+      }
+    }
+    return wrapper;
+  }
+
+  function truncateContent(content) {
+    const maxChars = 260;
+    if (content.length <= maxChars) {
+      return content;
+    }
+    return `${content.slice(0, maxChars)}\n...`;
+  }
+
+  function applyAnimations() {
+    while (animationQueue.length) {
+      const { id, className } = animationQueue.shift();
+      const el = filesystemEl.querySelector(`[data-id="${id}"]`);
+      if (el) {
+        el.classList.add(className);
+        setTimeout(() => el.classList.remove(className), 1200);
+      }
+    }
+  }
+
+  function scheduleAnimation(id, className = "flash") {
+    animationQueue.push({ id, className });
+  }
+
+  function nextId() {
+    idCounter += 1;
+    return `item-${idCounter}`;
+  }
+
+  function createFile(name, content, parentId = null, permissions = "-rw-r--r--") {
+    const id = nextId();
+    const file = {
+      id,
+      name,
+      type: "file",
+      content,
+      parentId,
+      permissions
+    };
+    fsState.items.set(id, file);
+    attachToParent(id, parentId);
+    scheduleAnimation(id, "pulse");
+    return file;
+  }
+
+  function createDirectory(name, parentId = null, permissions = "drwxr-xr-x") {
+    const id = nextId();
+    const directory = {
+      id,
+      name,
+      type: "directory",
+      parentId,
+      permissions,
+      children: []
+    };
+    fsState.items.set(id, directory);
+    attachToParent(id, parentId);
+    scheduleAnimation(id, "pulse");
+    return directory;
+  }
+
+  function attachToParent(id, parentId) {
+    if (parentId) {
+      const parent = fsState.items.get(parentId);
+      if (parent && parent.type === "directory") {
+        parent.children.push(id);
+      } else {
+        fsState.rootIds.push(id);
+      }
+    } else {
+      fsState.rootIds.push(id);
+    }
+  }
+
+  function detachFromParent(id, parentId) {
+    if (!parentId) {
+      fsState.rootIds = fsState.rootIds.filter(rootId => rootId !== id);
+      return;
+    }
+    const parent = fsState.items.get(parentId);
+    if (parent && parent.type === "directory") {
+      parent.children = parent.children.filter(childId => childId !== id);
+    }
+  }
+
+  function moveItem(id, newParentId) {
+    const item = fsState.items.get(id);
+    if (!item) {
+      return;
+    }
+    detachFromParent(id, item.parentId);
+    item.parentId = newParentId;
+    attachToParent(id, newParentId);
+    scheduleAnimation(id, "flash");
+  }
+
+  function cloneFile(sourceFile, newName) {
+    return createFile(newName, sourceFile.content, sourceFile.parentId, sourceFile.permissions);
+  }
+
+  function updateFileContent(file, content) {
+    file.content = content;
+    renderFileSystem();
+  }
+
+  function ensureFileExists(name, content) {
+    const file = Array.from(fsState.items.values()).find(item => item.type === "file" && item.name === name);
+    if (file) {
+      return file;
+    }
+    const created = createFile(name, content || "Generated content", null, "-rw-r--r--");
+    renderFileSystem();
+    return created;
+  }
+
+  function ensureDirectoryExists(name) {
+    const directory = Array.from(fsState.items.values()).find(item => item.type === "directory" && item.name === name);
+    if (directory) {
+      return directory;
+    }
+    const created = createDirectory(name);
+    renderFileSystem();
+    return created;
+  }
+
+  function pickFile(preferredName) {
+    let candidates = Array.from(fsState.items.values()).filter(item => item.type === "file");
+    if (!candidates.length) {
+      candidates.push(createFile("placeholder.txt", "Placeholder content"));
+      renderFileSystem();
+    }
+    if (preferredName) {
+      const preferred = candidates.find(file => file.name === preferredName);
+      if (preferred) {
+        return preferred;
+      }
+    }
+    return candidates[Math.floor(Math.random() * candidates.length)];
+  }
+
+  function pickDirectory() {
+    const directories = Array.from(fsState.items.values()).filter(item => item.type === "directory");
+    if (!directories.length) {
+      directories.push(createDirectory("workspace"));
+      renderFileSystem();
+    }
+    return directories[Math.floor(Math.random() * directories.length)];
+  }
+
+  function formatLsLine(item) {
+    const filename = item.name;
+    const permissions = item.permissions;
+    const size = item.type === "directory" ? "4096" : `${(item.content || "").length}`;
+    return `${permissions} 1 hacker staff ${size.padStart(6, " ")} Dec 25 08:00 ${filename}`;
+  }
+
+  function shuffle(array) {
+    for (let i = array.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [array[i], array[j]] = [array[j], array[i]];
+    }
+  }
+
+  function speakDescription(text) {
+    if (!window.speechSynthesis) {
+      logSystem("(Speech unavailable)");
+      return;
+    }
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = "ja-JP";
+    utterance.pitch = 1;
+    utterance.rate = 1;
+    window.speechSynthesis.speak(utterance);
+  }
+
+  function runEcho(context) {
+    context.logCommand('echo "Hello Hackathon"');
+    context.logOutput("Hello Hackathon");
+    return Promise.resolve();
+  }
+
+  function runTouch(context) {
+    const filename = `note-${Date.now()}.txt`;
+    context.logCommand(`touch ${filename}`);
+    const file = context.createFile(filename, "", null, "-rw-r--r--");
+    context.logOutput(`(created empty file ${filename})`);
+    context.renderFileSystem();
+    return Promise.resolve(file);
+  }
+
+  function runMkdir(context) {
+    const dirname = `dir-${Math.floor(Math.random() * 1000)}`;
+    context.logCommand(`mkdir ${dirname}`);
+    context.createDirectory(dirname);
+    context.logOutput(`(directory ${dirname} ready)`);
+    context.renderFileSystem();
+    return Promise.resolve();
+  }
+
+  function runMv(context) {
+    const file = context.pickFile();
+    const directory = context.pickDirectory();
+    const targetPath = `${directory.name}/${file.name}`;
+    context.logCommand(`mv ${file.name} ${directory.name}/`);
+    context.moveItem(file.id, directory.id);
+    context.logOutput(`Moved ${file.name} into ${directory.name}`);
+    context.renderFileSystem();
+    return Promise.resolve(targetPath);
+  }
+
+  function runGrep(context) {
+    const pattern = "[ERROR]";
+    let file = Array.from(context.fsState.items.values()).find(item => item.type === "file" && item.content.includes(pattern));
+    if (!file) {
+      file = context.createFile("system.log", `Auto-generated log\n${pattern} synthetic failure\nRecovery complete`);
+    }
+    context.logCommand(`grep "${pattern}" ${file.name}`);
+    const matches = file.content.split("\n").filter(line => line.includes(pattern));
+    if (!matches.length) {
+      context.logOutput("(no matches)");
+    } else {
+      matches.forEach(line => context.logOutput(line));
+    }
+    context.renderFileSystem();
+    return Promise.resolve(matches);
+  }
+
+  function runChmod(context) {
+    const file = context.pickFile();
+    const before = file.permissions;
+    const after = before.includes("x") ? "-rw-r--r--" : "-rwxr-xr-x";
+    context.logCommand(`ls -l ${file.name}`);
+    context.logOutput(context.formatLsLine(file));
+    context.logCommand(`chmod 755 ${file.name}`);
+    file.permissions = after;
+    context.scheduleAnimation(file.id, "flash");
+    context.logCommand(`ls -l ${file.name}`);
+    context.logOutput(context.formatLsLine(file));
+    context.renderFileSystem();
+    return Promise.resolve({ before, after });
+  }
+
+  function runTailFallbackContent() {
+    return [
+      "Generating fallback data",
+      "Ensuring tail output",
+      "Line three placeholder",
+      "Line four placeholder",
+      "Line five placeholder"
+    ].join("\n");
+  }
+
+  function runRm(context) {
+    context.logCommand("rm -rf *");
+    context.logSystem("Everything is gone.");
+    Array.from(context.fsState.items.values()).forEach(item => {
+      const element = filesystemEl.querySelector(`[data-id="${item.id}"]`);
+      if (element) {
+        element.classList.add("fade");
+      }
+    });
+    setTimeout(() => {
+      context.fsState.items.clear();
+      context.fsState.rootIds = [];
+      context.renderFileSystem();
+    }, 1200);
+    return Promise.resolve();
+  }
+
+  function runTail(context) {
+    const file = context.pickFile("app.log");
+    if (!file.content) {
+      file.content = runTailFallbackContent();
+      context.renderFileSystem();
+    }
+    const lines = file.content.split("\n");
+    const tail = lines.slice(-5);
+    context.logCommand(`tail -n 5 ${file.name}`);
+    tail.forEach(line => context.logOutput(line));
+    return Promise.resolve(tail);
+  }
+
+  function runCat(context) {
+    const file = context.pickFile("todo.txt");
+    context.logCommand(`cat ${file.name}`);
+    file.content.split("\n").forEach(line => context.logOutput(line));
+    return Promise.resolve();
+  }
+
+  function runLess(context) {
+    const file = context.pickFile("app.log");
+    if (!file.content) {
+      file.content = "Generated file for less command";
+      context.renderFileSystem();
+    }
+    const lines = file.content.split("\n").slice(0, 10);
+    context.logCommand(`less ${file.name}`);
+    context.logOutput(`---- less: ${file.name} (top) ----`);
+    lines.forEach(line => context.logOutput(line));
+    context.logOutput("---- (press q to quit) ----");
+    return Promise.resolve(lines);
+  }
+
+  function runCp(context) {
+    const source = context.pickFile();
+    const extensionIndex = source.name.lastIndexOf(".");
+    const copyName = extensionIndex > -1
+      ? `${source.name.slice(0, extensionIndex)}_copy${source.name.slice(extensionIndex)}`
+      : `${source.name}_copy`;
+    context.logCommand(`cp ${source.name} ${copyName}`);
+    const clone = context.cloneFile(source, copyName);
+    context.logOutput(`Duplicated ${source.name} -> ${copyName}`);
+    context.renderFileSystem();
+    return Promise.resolve(clone);
+  }
+
+  initializeGame();
+})();
+</script>
+</body>
+</html>
