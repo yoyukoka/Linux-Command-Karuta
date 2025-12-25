@@ -381,42 +381,42 @@ h1 {
     },
     {
       name: "echo",
-      description: "テキストを標準出力に表示します。",
+      description: "テキストを標準出力します。",
       execute: context => runEcho(context)
     },
     {
       name: "touch",
-      description: "空のファイルを新しく用意します。",
+      description: "ファイルのタイムスタンプを変更する，またはからのファイルを作成します。",
       execute: context => runTouch(context)
     },
     {
       name: "mv",
-      description: "ファイルを別の場所へ移動します。",
+      description: "ファイルやディレクトリを移動します。",
       execute: context => runMv(context)
     },
     {
       name: "mkdir",
-      description: "新しいディレクトリを作成します。",
+      description: "ディレクトリを作成します。",
       execute: context => runMkdir(context)
     },
     {
       name: "less",
-      description: "ファイルをスクロールしながら閲覧します。",
+      description: "ファイルの内容を1画面ずつ出力します。",
       execute: context => runLess(context)
     },
     {
       name: "tail",
-      description: "ファイルの末尾を表示します。",
+      description: "ファイルの末尾を出力します。",
       execute: context => runTail(context)
     },
     {
       name: "cp",
-      description: "ファイルを複製します。",
+      description: "ファイルやディレクトリをコピーします。",
       execute: context => runCp(context)
     },
     {
       name: "cat",
-      description: "ファイル全体を出力します。",
+      description: "ファイルの内容を出力します。",
       execute: context => runCat(context)
     },
     {
@@ -426,7 +426,7 @@ h1 {
     },
     {
       name: "rm",
-      description: "すべての成果物を消し去ります。",
+      description: "ファイルやディレクトリを削除します。",
       execute: context => runRm(context)
     }
   ];
