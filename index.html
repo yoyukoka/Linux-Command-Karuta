@@ -213,6 +213,48 @@ h1 {
   100% { opacity: 0; transform: scale(0.8); }
 }
 
+#goneOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 1);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 28px;
+  z-index: 9999;
+  text-align: center;
+}
+
+#goneOverlay.visible {
+  display: flex;
+}
+
+#goneOverlay .message {
+  font-size: 2.4rem;
+  color: #ffffff;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+#goneOverlay button {
+  font-size: 1.2rem;
+  padding: 14px 36px;
+  border-radius: 999px;
+  border: 2px solid #ffffff;
+  background: transparent;
+  color: #ffffff;
+  cursor: pointer;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+#goneOverlay button:hover {
+  background: #ffffff;
+  color: #000000;
+}
+
 @media (max-width: 768px) {
   body {
     padding: 12px;
@@ -236,6 +278,10 @@ h1 {
   </section>
 </div>
 <button id="actionButton">次の札を読む</button>
+<div id="goneOverlay">
+  <div class="message">Everything is gone.</div>
+  <button id="overlayReboot">Reboot</button>
+</div>
 <script>
 (() => {
   const STATE = {
@@ -247,6 +293,8 @@ h1 {
   const terminalEl = document.getElementById("terminal");
   const filesystemEl = document.getElementById("filesystem");
   const actionButton = document.getElementById("actionButton");
+  const overlayEl = document.getElementById("goneOverlay");
+  const overlayRebootButton = document.getElementById("overlayReboot");
 
   let currentState = STATE.WAITING;
   let deck = [];
@@ -393,7 +441,12 @@ h1 {
     }
   });
 
+  overlayRebootButton.addEventListener("click", () => {
+    initializeGame();
+  });
+
   function initializeGame() {
+    hideOverlay();
     currentState = STATE.WAITING;
     deck = buildDeck();
     currentCard = null;
@@ -418,8 +471,6 @@ h1 {
     }
     currentCard = deck.shift();
     currentState = STATE.REVEAL;
-    logSeparator();
-    logPrompt("Command: ? ? ?");
     speakDescription(currentCard.description);
     updateButtonLabel();
   }
@@ -476,7 +527,8 @@ h1 {
       updateFileContent,
       scheduleAnimation,
       renderFileSystem,
-      fsState
+      fsState,
+      showOverlay
     };
   }
 
@@ -494,10 +546,6 @@ h1 {
 
   function logPrompt(text) {
     pushLog({ text, className: "prompt" });
-  }
-
-  function logSeparator() {
-    pushLog({ text: "----------------------------------------", className: "subtle" });
   }
 
   function pushLog(entry) {
@@ -619,6 +667,17 @@ h1 {
   function nextId() {
     idCounter += 1;
     return `item-${idCounter}`;
+  }
+
+  function showOverlay() {
+    overlayEl.classList.add("visible");
+    if (overlayRebootButton) {
+      overlayRebootButton.focus();
+    }
+  }
+
+  function hideOverlay() {
+    overlayEl.classList.remove("visible");
   }
 
   function createFile(name, content, parentId = null, permissions = "-rw-r--r--") {
@@ -847,7 +906,6 @@ h1 {
 
   function runRm(context) {
     context.logCommand("rm -rf *");
-    context.logSystem("Everything is gone.");
     Array.from(context.fsState.items.values()).forEach(item => {
       const element = filesystemEl.querySelector(`[data-id="${item.id}"]`);
       if (element) {
@@ -858,6 +916,7 @@ h1 {
       context.fsState.items.clear();
       context.fsState.rootIds = [];
       context.renderFileSystem();
+      context.showOverlay();
     }, 1200);
     return Promise.resolve();
   }
