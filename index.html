@@ -92,10 +92,17 @@ h1 {
 }
 
 .log-line.command {
-  font-weight: 600;
+  color: #ffffff;
+  font-weight: 700;
+  text-shadow: 0 0 6px rgba(255, 255, 255, 0.3);
 }
 
-.log-line.prompt,
+.log-line.prompt {
+  color: #ffff00;
+  font-weight: 700;
+  text-shadow: 0 0 6px rgba(255, 255, 0, 0.4);
+}
+
 .log-line.system,
 .log-line.subtle,
 .log-line.error {
@@ -485,7 +492,7 @@ h1 {
     if (!currentCard) {
       return;
     }
-    logPrompt(`Command: ${currentCard.name}`);
+    logPrompt(`Answer: ${currentCard.name}`);
     currentCard.execute(createContext()).then(() => {
       if (currentCard.name === "rm") {
         finishGame();
@@ -539,7 +546,7 @@ h1 {
   }
 
   function logCommand(text) {
-    pushLog({ text: `$ ${text}`, className: "command" });
+    pushLog({ text: `root@hackathon:~$ ${text}`, className: "command" });
   }
 
   function logOutput(text) {
