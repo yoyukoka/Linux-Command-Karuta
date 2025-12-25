@@ -578,7 +578,7 @@ h1 {
   }
 
   function logCommand(text) {
-    pushLog({ text: `root@hackathon:~$ ${text}`, className: "command" });
+    return typeLine(`root@hackathon:~$ ${text}`, "command");
   }
 
   function logOutput(text) {
@@ -589,43 +589,57 @@ h1 {
     pushLog({ text, className: "system" });
   }
 
-  function typeAnswer(text) {
+  function typeLine(text, className, speed = 30) {
     if (typingAbort) {
       typingAbort();
       typingAbort = null;
     }
     return new Promise(resolve => {
-      const entry = { text: "", className: "prompt" };
+      const entry = { text: "", className };
       pushLog(entry);
       const chars = Array.from(text);
       if (!chars.length) {
         entry.text = text;
         renderTerminal();
-        typingAbort = null;
         resolve();
         return;
       }
+      const cursor = "_";
       let index = 0;
       let current = "";
+      let finished = false;
+      entry.text = cursor;
+      renderTerminal();
       const interval = setInterval(() => {
         current += chars[index];
-        entry.text = current;
-        renderTerminal();
         index += 1;
-        if (index >= chars.length) {
+        if (index < chars.length) {
+          entry.text = current + cursor;
+        } else {
+          entry.text = current;
           clearInterval(interval);
+          finished = true;
           typingAbort = null;
           resolve();
         }
-      }, 30);
+        renderTerminal();
+      }, speed);
       typingAbort = () => {
+        if (finished) {
+          return;
+        }
         clearInterval(interval);
         entry.text = text;
         renderTerminal();
+        finished = true;
         typingAbort = null;
         resolve();
       };
     });
+  }
+
+  function typeAnswer(text) {
+    return typeLine(text, "prompt");
   }
 
   function pushLog(entry) {
@@ -908,38 +922,40 @@ h1 {
   }
 
   function runEcho(context) {
-    context.logCommand('echo "Hello Hackathon"');
-    context.logOutput("Hello Hackathon");
-    return Promise.resolve();
+    return context.logCommand('echo "Hello Hackathon"').then(() => {
+      context.logOutput("Hello Hackathon");
+    });
   }
 
   function runTouch(context) {
     const filename = `note-${Date.now()}.txt`;
-    context.logCommand(`touch ${filename}`);
-    const file = context.createFile(filename, "", null, "-rw-r--r--");
-    context.logOutput(`(created empty file ${filename})`);
-    context.renderFileSystem();
-    return Promise.resolve(file);
+    return context.logCommand(`touch ${filename}`).then(() => {
+      const file = context.createFile(filename, "", null, "-rw-r--r--");
+      context.logOutput(`(created empty file ${filename})`);
+      context.renderFileSystem();
+      return file;
+    });
   }
 
   function runMkdir(context) {
     const dirname = `dir-${Math.floor(Math.random() * 1000)}`;
-    context.logCommand(`mkdir ${dirname}`);
-    context.createDirectory(dirname);
-    context.logOutput(`(directory ${dirname} ready)`);
-    context.renderFileSystem();
-    return Promise.resolve();
+    return context.logCommand(`mkdir ${dirname}`).then(() => {
+      context.createDirectory(dirname);
+      context.logOutput(`(directory ${dirname} ready)`);
+      context.renderFileSystem();
+    });
   }
 
   function runMv(context) {
     const file = context.pickFile();
     const directory = context.pickDirectory();
     const targetPath = `${directory.name}/${file.name}`;
-    context.logCommand(`mv ${file.name} ${directory.name}/`);
-    context.moveItem(file.id, directory.id);
-    context.logOutput(`Moved ${file.name} into ${directory.name}`);
-    context.renderFileSystem();
-    return Promise.resolve(targetPath);
+    return context.logCommand(`mv ${file.name} ${directory.name}/`).then(() => {
+      context.moveItem(file.id, directory.id);
+      context.logOutput(`Moved ${file.name} into ${directory.name}`);
+      context.renderFileSystem();
+      return targetPath;
+    });
   }
 
   function runGrep(context) {
@@ -948,30 +964,37 @@ h1 {
     if (!file) {
       file = context.createFile("system.log", `Auto-generated log\n${pattern} synthetic failure\nRecovery complete`);
     }
-    context.logCommand(`grep "${pattern}" ${file.name}`);
-    const matches = file.content.split("\n").filter(line => line.includes(pattern));
-    if (!matches.length) {
-      context.logOutput("(no matches)");
-    } else {
-      matches.forEach(line => context.logOutput(line));
-    }
-    context.renderFileSystem();
-    return Promise.resolve(matches);
+    return context.logCommand(`grep "${pattern}" ${file.name}`).then(() => {
+      const matches = file.content.split("\n").filter(line => line.includes(pattern));
+      if (!matches.length) {
+        context.logOutput("(no matches)");
+      } else {
+        matches.forEach(line => context.logOutput(line));
+      }
+      context.renderFileSystem();
+      return matches;
+    });
   }
 
   function runChmod(context) {
     const file = context.pickFile();
     const before = file.permissions;
     const after = before.includes("x") ? "-rw-r--r--" : "-rwxr-xr-x";
-    context.logCommand(`ls -l ${file.name}`);
-    context.logOutput(context.formatLsLine(file));
-    context.logCommand(`chmod 755 ${file.name}`);
-    file.permissions = after;
-    context.scheduleAnimation(file.id, "flash");
-    context.logCommand(`ls -l ${file.name}`);
-    context.logOutput(context.formatLsLine(file));
-    context.renderFileSystem();
-    return Promise.resolve({ before, after });
+    return context.logCommand(`ls -l ${file.name}`)
+      .then(() => {
+        context.logOutput(context.formatLsLine(file));
+        return context.logCommand(`chmod 755 ${file.name}`);
+      })
+      .then(() => {
+        file.permissions = after;
+        context.scheduleAnimation(file.id, "flash");
+        return context.logCommand(`ls -l ${file.name}`);
+      })
+      .then(() => {
+        context.logOutput(context.formatLsLine(file));
+        context.renderFileSystem();
+        return { before, after };
+      });
   }
 
   function runTailFallbackContent() {
@@ -985,20 +1008,23 @@ h1 {
   }
 
   function runRm(context) {
-    context.logCommand("rm -rf *");
-    Array.from(context.fsState.items.values()).forEach(item => {
-      const element = filesystemEl.querySelector(`[data-id="${item.id}"]`);
-      if (element) {
-        element.classList.add("fade");
-      }
+    return context.logCommand("rm -rf *").then(() => {
+      Array.from(context.fsState.items.values()).forEach(item => {
+        const element = filesystemEl.querySelector(`[data-id="${item.id}"]`);
+        if (element) {
+          element.classList.add("fade");
+        }
+      });
+      return new Promise(resolve => {
+        setTimeout(() => {
+          context.fsState.items.clear();
+          context.fsState.rootIds = [];
+          context.renderFileSystem();
+          context.showOverlay();
+          resolve();
+        }, 1200);
+      });
     });
-    setTimeout(() => {
-      context.fsState.items.clear();
-      context.fsState.rootIds = [];
-      context.renderFileSystem();
-      context.showOverlay();
-    }, 1200);
-    return Promise.resolve();
   }
 
   function runTail(context) {
@@ -1009,16 +1035,17 @@ h1 {
     }
     const lines = file.content.split("\n");
     const tail = lines.slice(-5);
-    context.logCommand(`tail -n 5 ${file.name}`);
-    tail.forEach(line => context.logOutput(line));
-    return Promise.resolve(tail);
+    return context.logCommand(`tail -n 5 ${file.name}`).then(() => {
+      tail.forEach(line => context.logOutput(line));
+      return tail;
+    });
   }
 
   function runCat(context) {
     const file = context.pickFile("todo.txt");
-    context.logCommand(`cat ${file.name}`);
-    file.content.split("\n").forEach(line => context.logOutput(line));
-    return Promise.resolve();
+    return context.logCommand(`cat ${file.name}`).then(() => {
+      file.content.split("\n").forEach(line => context.logOutput(line));
+    });
   }
 
   function runLess(context) {
@@ -1028,11 +1055,12 @@ h1 {
       context.renderFileSystem();
     }
     const lines = file.content.split("\n").slice(0, 10);
-    context.logCommand(`less ${file.name}`);
-    context.logOutput(`---- less: ${file.name} (top) ----`);
-    lines.forEach(line => context.logOutput(line));
-    context.logOutput("---- (press q to quit) ----");
-    return Promise.resolve(lines);
+    return context.logCommand(`less ${file.name}`).then(() => {
+      context.logOutput(`---- less: ${file.name} (top) ----`);
+      lines.forEach(line => context.logOutput(line));
+      context.logOutput("---- (press q to quit) ----");
+      return lines;
+    });
   }
 
   function runCp(context) {
@@ -1041,11 +1069,12 @@ h1 {
     const copyName = extensionIndex > -1
       ? `${source.name.slice(0, extensionIndex)}_copy${source.name.slice(extensionIndex)}`
       : `${source.name}_copy`;
-    context.logCommand(`cp ${source.name} ${copyName}`);
-    const clone = context.cloneFile(source, copyName);
-    context.logOutput(`Duplicated ${source.name} -> ${copyName}`);
-    context.renderFileSystem();
-    return Promise.resolve(clone);
+    return context.logCommand(`cp ${source.name} ${copyName}`).then(() => {
+      const clone = context.cloneFile(source, copyName);
+      context.logOutput(`Duplicated ${source.name} -> ${copyName}`);
+      context.renderFileSystem();
+      return clone;
+    });
   }
 
   initializeGame();
