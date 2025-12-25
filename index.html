@@ -263,9 +263,38 @@ h1 {
   transition: background 0.3s ease, color 0.3s ease;
 }
 
+
 #goneOverlay button:hover {
   background: var(--accent);
   color: var(--bg-main);
+}
+
+#crtOverlay {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 5000;
+  background:
+    radial-gradient(circle at center, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.18) 55%, rgba(0, 0, 0, 0.45) 80%, rgba(0, 0, 0, 0.7) 100%),
+    repeating-linear-gradient(to bottom, rgba(0, 255, 0, 0.08) 0px, rgba(0, 255, 0, 0.08) 1px, transparent 1px, transparent 3px);
+  opacity: 0.16;
+  animation: crtFlicker 6s infinite;
+}
+
+#crtOverlay::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  box-shadow: inset 0 0 120px rgba(0, 0, 0, 0.6);
+}
+
+@keyframes crtFlicker {
+  0%, 100% { opacity: 0.18; }
+  45% { opacity: 0.2; }
+  50% { opacity: 0.14; }
+  55% { opacity: 0.22; }
+  60% { opacity: 0.16; }
+  80% { opacity: 0.21; }
 }
 
 @media (max-width: 768px) {
@@ -291,6 +320,7 @@ h1 {
   </section>
 </div>
 <button id="actionButton">次の札を読む</button>
+<div id="crtOverlay"></div>
 <div id="goneOverlay">
   <div class="message">Everything is gone.</div>
   <button id="overlayReboot">Reboot</button>
