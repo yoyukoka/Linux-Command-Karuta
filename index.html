@@ -345,6 +345,7 @@ h1 {
   const terminalLog = [];
   const animationQueue = [];
   let idCounter = 0;
+  let typingAbort = null;
 
   const fsState = {
     items: new Map(),
@@ -522,17 +523,18 @@ h1 {
     if (!currentCard) {
       return;
     }
-    logPrompt(`Answer: ${currentCard.name}`);
-    currentCard.execute(createContext()).then(() => {
-      if (currentCard.name === "rm") {
-        finishGame();
-      } else if (!deck.length) {
-        finishGame();
-      } else {
-        currentState = STATE.WAITING;
-        currentCard = null;
-        updateButtonLabel();
-      }
+    typeAnswer(`Answer: ${currentCard.name}`).then(() => {
+      currentCard.execute(createContext()).then(() => {
+        if (currentCard.name === "rm") {
+          finishGame();
+        } else if (!deck.length) {
+          finishGame();
+        } else {
+          currentState = STATE.WAITING;
+          currentCard = null;
+          updateButtonLabel();
+        }
+      });
     });
   }
 
@@ -587,8 +589,43 @@ h1 {
     pushLog({ text, className: "system" });
   }
 
-  function logPrompt(text) {
-    pushLog({ text, className: "prompt" });
+  function typeAnswer(text) {
+    if (typingAbort) {
+      typingAbort();
+      typingAbort = null;
+    }
+    return new Promise(resolve => {
+      const entry = { text: "", className: "prompt" };
+      pushLog(entry);
+      const chars = Array.from(text);
+      if (!chars.length) {
+        entry.text = text;
+        renderTerminal();
+        typingAbort = null;
+        resolve();
+        return;
+      }
+      let index = 0;
+      let current = "";
+      const interval = setInterval(() => {
+        current += chars[index];
+        entry.text = current;
+        renderTerminal();
+        index += 1;
+        if (index >= chars.length) {
+          clearInterval(interval);
+          typingAbort = null;
+          resolve();
+        }
+      }, 30);
+      typingAbort = () => {
+        clearInterval(interval);
+        entry.text = text;
+        renderTerminal();
+        typingAbort = null;
+        resolve();
+      };
+    });
   }
 
   function pushLog(entry) {
